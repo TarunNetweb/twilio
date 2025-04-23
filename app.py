@@ -1,10 +1,12 @@
 from flask import Flask, request
 from twilio.twiml.voice_response import VoiceResponse
-from openai import OpenAI
 import os
-import logging
 import requests
+import logging
+from openai import OpenAI, RateLimitError, APIError
+from dotenv import load_dotenv
 
+load_dotenv()
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -34,19 +36,24 @@ def process():
         return str(response)
 
     try:
-        # Download the recording audio (Twilio returns it in WAV or MP3)
-        audio = requests.get(f"{recording_url}.mp3").content
+        # Download the recording as binary
+        audio_data = requests.get(f"{recording_url}.mp3").content
 
-        # Transcribe using Whisper (GPT-4o can also do this with images/audio)
-        transcription = client.audio.transcriptions.create(
-            model="gpt-4o-transcribe", 
-            file=audio_file
-        )
+        # Save temporarily
+        with open("temp_audio.mp3", "wb") as f:
+            f.write(audio_data)
+
+        # Transcribe with Whisper
+        with open("temp_audio.mp3", "rb") as audio_file:
+            transcription = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file
+            )
         text = transcription.text
         logging.info(f"Transcription: {text}")
 
         # Generate GPT response
-        gpt_response = openai.ChatCompletion.create(
+        gpt_response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": text}]
         )
@@ -57,10 +64,9 @@ def process():
     except Exception as e:
         logging.error(f"Processing failed: {e}")
         response.say("Sorry, something went wrong while processing your message.")
-    
+
     response.hangup()
     return str(response)
 
 if __name__ == "__main__":
-    logging.info("Starting Flask app...")
     app.run(debug=True)
