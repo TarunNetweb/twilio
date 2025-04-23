@@ -1,0 +1,46 @@
+# Ignore Python virtual environment folders (inside current directory)
+include/
+lib/
+Scripts/        # for Windows
+bin/            # for Linux/Mac
+pyvenv.cfg
+
+# Ignore environment variable files
+.env
+.env.*
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*.so
+
+# OS files
+.DS_Store
+
+# IDE configs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+coverage.xml
+*.cover
+
+# Flask specific
+instance/
+*.db
+*.sqlite3
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
