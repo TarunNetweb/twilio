@@ -1,6 +1,6 @@
 from flask import Flask, request
 from twilio.twiml.voice_response import VoiceResponse
-import openai
+from openai import OpenAI
 import os
 import logging
 import requests
