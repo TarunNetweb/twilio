@@ -51,7 +51,7 @@ def transcription():
 
     try:
         from twilio.rest import Client
-        client = Client(os.getenv('twilio_sid'), os.getenv('twilio_token'))
+        client = Client(os.getenv('twilio_sid'), os.getenv('twilio_auth'))
         message = client.messages.create(
             body=f"Response to your message: {reply}",
             from_=os.getenv('twilio_number'),
