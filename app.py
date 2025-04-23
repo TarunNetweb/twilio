@@ -6,7 +6,6 @@ import logging
 from openai import OpenAI, RateLimitError, APIError
 
 
-load_dotenv()
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
