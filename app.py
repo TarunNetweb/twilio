@@ -4,7 +4,7 @@ import os
 import requests
 import logging
 from openai import OpenAI, RateLimitError, APIError
-from dotenv import load_dotenv
+
 
 load_dotenv()
 app = Flask(__name__)
