@@ -43,7 +43,7 @@ def transcription():
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": transcription_text}]
         )
-        reply = gpt_response['choices'][0]['message']['content']
+        reply = gpt_response.choices[0].message.content
         logging.info(f"Generated reply using OpenAI: {reply}")
     except Exception as e:
         logging.error(f"Error during OpenAI processing: {e}")
