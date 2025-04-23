@@ -3,8 +3,8 @@ from twilio.twiml.voice_response import VoiceResponse
 import os
 import requests
 import logging
-from openai import OpenAI, RateLimitError, APIError
-
+from openai import OpenAI
+from io import BytesIO
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -35,19 +35,17 @@ def process():
         return str(response)
 
     try:
-        # Download the recording as binary
-        audio_data = requests.get(f"{recording_url}.mp3").content
+        # Download the audio file
+        audio_response = requests.get(f"{recording_url}.mp3")
+        audio_data = BytesIO(audio_response.content)
 
-        # Save temporarily
-        with open("temp_audio.mp3", "wb") as f:
-            f.write(audio_data)
+        # Whisper expects a named file-like object
+        audio_data.name = "message.mp3"
 
-        # Transcribe with Whisper
-        with open("temp_audio.mp3", "rb") as audio_file:
-            transcription = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file
-            )
+        transcription = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_data
+        )
         text = transcription.text
         logging.info(f"Transcription: {text}")
 

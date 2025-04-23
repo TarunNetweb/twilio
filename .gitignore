@@ -4,7 +4,7 @@ lib/
 Scripts/        # for Windows
 bin/            # for Linux/Mac
 pyvenv.cfg
-
+venv/
 # Ignore environment variable files
 .env
 .env.*
