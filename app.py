@@ -1,67 +1,65 @@
-from flask import Flask, request, redirect
+from flask import Flask, request
 from twilio.twiml.voice_response import VoiceResponse
-import requests
 import openai
 import os
 import logging
+import requests
 
 app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
-
-# Set your OpenAI key
-openai.api_key = os.getenv('OPENAI_API_KEY')
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route("/voice", methods=['GET', 'POST'])
 def voice():
-    """Respond to incoming phone calls with a recording prompt"""
-    logging.info("Received a call. Prompting user to record a message.")
     response = VoiceResponse()
-    response.say("Please leave a message after the beep. Press any key when done.")
-    response.record(max_length=30, action="/process", transcribe=True, transcribe_callback="/transcription")
+    response.say("Please leave your message after the beep.")
+    response.record(
+        max_length=30,
+        action="/process",
+        recording_status_callback_event='completed'
+    )
     return str(response)
 
 @app.route("/process", methods=['GET', 'POST'])
 def process():
-    """After recording, thank the user."""
-    logging.info("Recording complete. Thanking the user.")
+    recording_url = request.form.get("RecordingUrl")
+    logging.info(f"Recording URL: {recording_url}")
+
     response = VoiceResponse()
-    response.say("Thank you. We are processing your message.")
-    response.hangup()
-    return str(response)
 
-@app.route("/transcription", methods=['POST'])
-def transcription():
-    transcription_text = request.form.get('TranscriptionText', '')
-    from_number = request.form.get('From', '')
-
-    logging.info(f"Received transcription from {from_number}: {transcription_text}")
+    if not recording_url:
+        response.say("Sorry, no recording found.")
+        response.hangup()
+        return str(response)
 
     try:
-        gpt_response = openai.chat.completions.create(
+        # Download the recording audio (Twilio returns it in WAV or MP3)
+        audio = requests.get(f"{recording_url}.mp3").content
+
+        # Transcribe using Whisper (GPT-4o can also do this with images/audio)
+        transcription = client.audio.transcriptions.create(
+            model="gpt-4o-transcribe", 
+            file=audio_file
+        )
+        text = transcription.text
+        logging.info(f"Transcription: {text}")
+
+        # Generate GPT response
+        gpt_response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": transcription_text}]
+            messages=[{"role": "user", "content": text}]
         )
         reply = gpt_response.choices[0].message.content
-        logging.info(f"Generated reply using OpenAI: {reply}")
-    except Exception as e:
-        logging.error(f"Error during OpenAI processing: {e}")
-        reply = "Sorry, there was an issue processing your message."
+        logging.info(f"GPT reply: {reply}")
 
-    try:
-        from twilio.rest import Client
-        client = Client(os.getenv('twilio_sid'), os.getenv('twilio_auth'))
-        message = client.messages.create(
-            body=f"Response to your message: {reply}",
-            from_=os.getenv('twilio_number'),
-            to=from_number
-        )
-        logging.info(f"Sent SMS to {from_number}: {message.sid}")
+        response.say(reply, voice="alice")
     except Exception as e:
-        logging.error(f"Error sending SMS via Twilio: {e}")
-
-    return '', 200
+        logging.error(f"Processing failed: {e}")
+        response.say("Sorry, something went wrong while processing your message.")
+    
+    response.hangup()
+    return str(response)
 
 if __name__ == "__main__":
     logging.info("Starting Flask app...")
