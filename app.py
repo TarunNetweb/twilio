@@ -11,7 +11,7 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
 # Set your OpenAI key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 @app.route("/voice", methods=['GET', 'POST'])
 def voice():
@@ -39,7 +39,7 @@ def transcription():
     logging.info(f"Received transcription from {from_number}: {transcription_text}")
 
     try:
-        gpt_response = openai.ChatCompletion.create(
+        gpt_response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": transcription_text}]
         )
@@ -51,11 +51,11 @@ def transcription():
 
     try:
         from twilio.rest import Client
-        client = Client(os.getenv("twilio_sid"), os.getenv("twilio_token"))
+        client = Client(os.getenv('twilio_sid'), os.getenv('twilio_token'))
 
         message = client.messages.create(
             body=f"Response to your message: {reply}",
-            from_=os.getenv("twilio_number"),
+            from_=os.getenv('twilio_number'),
             to=from_number
         )
         logging.info(f"Sent SMS to {from_number}: {message.sid}")
