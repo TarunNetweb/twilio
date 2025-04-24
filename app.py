@@ -37,15 +37,12 @@ def process():
     try:
         # Download the audio file
         audio_response = requests.get(f"{recording_url}.mp3")
-        audio_data = BytesIO(audio_response.content)
-
-        # Whisper expects a named file-like object
-        audio_data.name = "message.mp3"
-
+        audio_file = ("message.mp3", BytesIO(audio_response.content), "audio/mpeg")
         transcription = client.audio.transcriptions.create(
-            model="whisper-1",
-            file=audio_data
-        )
+             model="whisper-1",
+             file=audio_file
+             )
+        
         text = transcription.text
         logging.info(f"Transcription: {text}")
 
@@ -56,7 +53,6 @@ def process():
         )
         reply = gpt_response.choices[0].message.content
         logging.info(f"GPT reply: {reply}")
-
         response.say(reply, voice="alice")
     except Exception as e:
         logging.error(f"Processing failed: {e}")
