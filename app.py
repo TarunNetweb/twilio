@@ -1,65 +1,56 @@
 from flask import Flask, request
 from twilio.twiml.voice_response import VoiceResponse
-import os
 import requests
+import openai
+import os
 import logging
-from openai import OpenAI
-from io import BytesIO
 
 app = Flask(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route("/voice", methods=['GET', 'POST'])
 def voice():
+    logging.info("Received a call. Prompting user to record a message.")
     response = VoiceResponse()
-    response.say("Please leave your message after the beep.")
+    response.say("Please leave a message after the beep. Press any key when done.")
     response.record(
         max_length=30,
         action="/process",
-        recording_status_callback_event='completed'
+        transcribe=True  # Transcription will be added to /process via POST
     )
     return str(response)
 
-@app.route("/process", methods=['GET', 'POST'])
+@app.route("/process", methods=['POST'])
 def process():
-    recording_url = request.form.get("RecordingUrl")
-    logging.info(f"Recording URL: {recording_url}")
+    transcription_text = request.form.get('TranscriptionText', '')
+    from_number = request.form.get('From', '')
 
     response = VoiceResponse()
 
-    if not recording_url:
-        response.say("Sorry, no recording found.")
+    logging.info(f"Received transcription from {from_number}: {transcription_text}")
+
+    if not transcription_text:
+        response.say("Sorry, we could not understand your message.")
         response.hangup()
         return str(response)
 
     try:
-        # Download the audio file
-        audio_response = requests.get(f"{recording_url}.mp3")
-        audio_file = ("message.mp3", BytesIO(audio_response.content), "audio/mpeg")
-        transcription = client.audio.transcriptions.create(
-             model="whisper-1",
-             file=audio_file
-             )
-        
-        text = transcription.text
-        logging.info(f"Transcription: {text}")
-
-        # Generate GPT response
-        gpt_response = client.chat.completions.create(
+        gpt_response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": text}]
+            messages=[{"role": "user", "content": transcription_text}]
         )
         reply = gpt_response.choices[0].message.content
-        logging.info(f"GPT reply: {reply}")
+        logging.info(f"Generated reply using OpenAI: {reply}")
         response.say(reply, voice="alice")
     except Exception as e:
-        logging.error(f"Processing failed: {e}")
-        response.say("Sorry, something went wrong while processing your message.")
+        logging.error(f"Error during OpenAI processing: {e}")
+        response.say("Sorry, there was an issue processing your message.")
 
     response.hangup()
     return str(response)
 
 if __name__ == "__main__":
+    logging.info("Starting Flask app...")
     app.run(debug=True)
