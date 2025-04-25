@@ -42,8 +42,9 @@ def process():
             f.write(audio_file.content)
 
         with open("recording.mp3", "rb") as audio:
-            transcript = openai.Audio.transcribe("whisper-1", audio)
-            transcription_text = transcript["text"]
+            transcript = openai.audio.transcriptions.create(model="gpt-4o-transcribe",     
+                                                            file=audio_file)
+            transcription_text = transcript.text
 
         logging.info(f"Transcribed text: {transcription_text}")
 
