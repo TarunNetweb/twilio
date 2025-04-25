@@ -40,7 +40,7 @@ def process():
 
     try:
         # Download the recording as a file-like object
-        audio_response = requests.get(f"{recording_url}")
+        audio_response = requests.get(f"{recording_url}", auth=(os.getenv("twilio_sid"), os.getenv("twilio_auth")))
         audio_bytes = io.BytesIO(audio_response.content)
         audio_bytes.name = f"{recording_url}"+".wav"
         # Transcribe using Whisper
