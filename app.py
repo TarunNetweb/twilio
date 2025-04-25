@@ -4,6 +4,8 @@ import requests
 import openai
 import os
 import logging
+from pydub import AudioSegment
+import io
 
 app = Flask(__name__)
 
@@ -39,14 +41,18 @@ def process():
     response = VoiceResponse()
 
     try:
+
         # Download the recording as a file-like object
         audio_response = requests.get(f"{recording_url}", auth=(os.getenv("twilio_sid"), os.getenv("twilio_auth")))
-        audio_bytes = io.BytesIO(audio_response.content)
-        audio_bytes.name = f"{recording_url}"+".wav"
-        logging.info(f"Saved recording to {audio_bytes.name}")
+        original_audio = AudioSegment.from_file(io.BytesIO(response.content), format="wav")
+        converted_audio = io.BytesIO()
+        original_audio.export(converted_audio, format="mp3")
+        converted_audio.name = "recording.mp3"
+        converted_audio.seek(0)
+        logging.info(f"Saved recording to {converted_audio.name}")
         # Transcribe using Whisper
         transcript =  openai.audio.transcriptions.create(model="whisper-1", 
-                                                         file=audio_bytes)
+                                                         file=converted_audio)
         transcription_text = transcript.text
         logging.info(f"Transcribed text: {transcription_text}")
 
