@@ -40,7 +40,7 @@ def process():
 
     try:
         # Download the recording as a file-like object
-        audio_response = requests.get(f"{recording_url}.mp3")
+        audio_response = requests.get(f"{recording_url}")
         audio_bytes = io.BytesIO(audio_response.content)
         audio_bytes.name = "recording.mp3"  # Required for OpenAI API
 
