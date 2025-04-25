@@ -44,7 +44,7 @@ def process():
 
         # Download the recording as a file-like object
         audio_response = requests.get(f"{recording_url}", auth=(os.getenv("twilio_sid"), os.getenv("twilio_auth")))
-        original_audio = AudioSegment.from_file(io.BytesIO(response.content), format="wav")
+        original_audio = AudioSegment.from_file(io.BytesIO(audio_response.content), format="wav")
         converted_audio = io.BytesIO()
         original_audio.export(converted_audio, format="mp3")
         converted_audio.name = "recording.mp3"
