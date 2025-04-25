@@ -42,8 +42,7 @@ def process():
         # Download the recording as a file-like object
         audio_response = requests.get(f"{recording_url}")
         audio_bytes = io.BytesIO(audio_response.content)
-        audio_bytes.name = recording_url  # Required for OpenAI API
-
+        audio_bytes.name = f"{recording_url}"+".wav"
         # Transcribe using Whisper
         transcript =  openai.audio.transcriptions.create(model="gpt-4o-transcribe", 
                                                          file=audio_bytes)
