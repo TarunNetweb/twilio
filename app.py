@@ -27,6 +27,8 @@ def voice():
     return str(response)
 
 
+import io
+
 @app.route("/process", methods=['GET', 'POST'])
 def process():
     recording_url = request.form.get("RecordingUrl")
@@ -37,17 +39,17 @@ def process():
     response = VoiceResponse()
 
     try:
-        audio_file = requests.get(f"{recording_url}.mp3")
-        with open("recording.mp3", "wb") as f:
-            f.write(audio_file.content)
+        # Download the recording as a file-like object
+        audio_response = requests.get(f"{recording_url}.mp3")
+        audio_bytes = io.BytesIO(audio_response.content)
+        audio_bytes.name = "recording.mp3"  # Required for OpenAI API
 
-        with open("recording.mp3", "rb") as audio:
-            transcript = openai.audio.transcriptions.create(model="gpt-4o-transcribe",     
-                                                            file=audio_file)
-            transcription_text = transcript.text
-
+        # Transcribe using Whisper
+        transcript = openai.audio.transcriptions.create("whisper-1", audio_bytes)
+        transcription_text = transcript.text
         logging.info(f"Transcribed text: {transcription_text}")
 
+        # Generate GPT response
         gpt_response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": transcription_text}]
@@ -55,6 +57,7 @@ def process():
         reply = gpt_response.choices[0].message.content
         logging.info(f"Generated reply using OpenAI: {reply}")
 
+        # Say the GPT response
         response.say(reply)
         response.say("Goodbye.")
         response.hangup()
@@ -65,6 +68,7 @@ def process():
         response.hangup()
 
     return str(response)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
