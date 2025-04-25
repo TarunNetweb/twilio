@@ -60,7 +60,7 @@ def transcription():
         logging.info(f"Sent SMS to {from_number}: {message.sid}")
         response = VoiceResponse()
         response.say(reply)
-        response.hangup()
+        # response.hangup()
     except Exception as e:
         logging.error(f"Error sending SMS via Twilio: {e}")
 
