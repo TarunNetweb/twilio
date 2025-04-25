@@ -43,6 +43,7 @@ def process():
         audio_response = requests.get(f"{recording_url}", auth=(os.getenv("twilio_sid"), os.getenv("twilio_auth")))
         audio_bytes = io.BytesIO(audio_response.content)
         audio_bytes.name = f"{recording_url}"+".wav"
+        logging.info(f"Saved recording to {audio_bytes.name}")
         # Transcribe using Whisper
         transcript =  openai.audio.transcriptions.create(model="gpt-4o-transcribe", 
                                                          file=audio_bytes)
