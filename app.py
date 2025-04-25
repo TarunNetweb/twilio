@@ -15,56 +15,55 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 
 @app.route("/voice", methods=['GET', 'POST'])
 def voice():
-    """Respond to incoming phone calls with a recording prompt"""
     logging.info("Received a call. Prompting user to record a message.")
     response = VoiceResponse()
     response.say("Please leave a message after the beep. Press any key when done.")
-    response.record(max_length=30, action="/process", transcribe=True, transcribe_callback="/transcription")
+    response.record(
+        max_length=30,
+        finish_on_key="*",
+        action="/process",  # after recording, Twilio will POST to /process
+        play_beep=True
+    )
     return str(response)
+
 
 @app.route("/process", methods=['GET', 'POST'])
 def process():
-    """After recording, thank the user."""
-    logging.info("Recording complete. Thanking the user.")
+    recording_url = request.form.get("RecordingUrl")
+    from_number = request.form.get("From")
+
+    logging.info(f"Recording complete. URL: {recording_url}, From: {from_number}")
+
     response = VoiceResponse()
-    response.say("Thank you. We are processing your message.")
-    # response.hangup()
-    return str(response)
-
-@app.route("/transcription", methods=['POST'])
-def transcription():
-    transcription_text = request.form.get('TranscriptionText', '')
-    from_number = request.form.get('From', '')
-
-    logging.info(f"Received transcription from {from_number}: {transcription_text}")
 
     try:
+        audio_file = requests.get(f"{recording_url}.mp3")
+        with open("recording.mp3", "wb") as f:
+            f.write(audio_file.content)
+
+        with open("recording.mp3", "rb") as audio:
+            transcript = openai.Audio.transcribe("whisper-1", audio)
+            transcription_text = transcript["text"]
+
+        logging.info(f"Transcribed text: {transcription_text}")
+
         gpt_response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": transcription_text}]
         )
         reply = gpt_response.choices[0].message.content
         logging.info(f"Generated reply using OpenAI: {reply}")
-    except Exception as e:
-        logging.error(f"Error during OpenAI processing: {e}")
-        reply = "Sorry, there was an issue processing your message."
 
-    try:
-        from twilio.rest import Client
-        client = Client(os.getenv('twilio_sid'), os.getenv('twilio_auth'))
-        message = client.messages.create(
-            body=f"Response to your message: {reply}",
-            from_=os.getenv('twilio_number'),
-            to=from_number
-        )
-        logging.info(f"Sent SMS to {from_number}: {message.sid}")
-        response = VoiceResponse()
         response.say(reply)
-        # response.hangup()
-    except Exception as e:
-        logging.error(f"Error sending SMS via Twilio: {e}")
+        response.say("Goodbye.")
+        response.hangup()
 
-    return '', 200
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        response.say("Sorry, there was a problem processing your message.")
+        response.hangup()
+
+    return str(response)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
