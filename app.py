@@ -45,7 +45,8 @@ def process():
         audio_bytes.name = "recording.mp3"  # Required for OpenAI API
 
         # Transcribe using Whisper
-        transcript = openai.audio.transcriptions.create("whisper-1", audio_bytes)
+        transcript =  openai.audio.transcriptions.create(model="gpt-4o-transcribe", 
+                                                         file=audio_bytes)
         transcription_text = transcript.text
         logging.info(f"Transcribed text: {transcription_text}")
 
