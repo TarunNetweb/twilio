@@ -45,7 +45,7 @@ def process():
         audio_bytes.name = f"{recording_url}"+".wav"
         logging.info(f"Saved recording to {audio_bytes.name}")
         # Transcribe using Whisper
-        transcript =  openai.audio.transcriptions.create(model="gpt-4o-transcribe", 
+        transcript =  openai.audio.transcriptions.create(model="whisper-1", 
                                                          file=audio_bytes)
         transcription_text = transcript.text
         logging.info(f"Transcribed text: {transcription_text}")
