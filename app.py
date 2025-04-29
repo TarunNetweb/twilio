@@ -46,14 +46,14 @@ def process():
 
     try:
         # Download the recording
-        audio_url = f"{recording_url}.mp3"
+        audio_url = f"{recording_url}"
         twilio_sid = os.getenv("twilio_sid")
         twilio_auth = os.getenv("twilio_auth")
         audio_response = requests.get(audio_url, auth=(twilio_sid, twilio_auth))
 
         if audio_response.status_code != 200:
             raise Exception(f"Failed to download audio. Status: {audio_response.status_code}")
-
+                
         # Save the file locally
         filename = f"recordings/{from_number.replace('+', '')}_{call_sid}.mp3"
         os.makedirs(os.path.dirname(filename), exist_ok=True)
