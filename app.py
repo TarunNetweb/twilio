@@ -50,7 +50,8 @@ def process():
         twilio_sid = os.getenv("twilio_sid")
         twilio_auth = os.getenv("twilio_auth")
         audio_response = requests.get(audio_url, auth=(twilio_sid, twilio_auth))
-
+        logging.info(twilio_auth,twilio_sid)
+        logging.info(audio_url)
         if audio_response.status_code != 200:
             raise Exception(f"Failed to download audio. Status: {audio_response.status_code}")
                 
