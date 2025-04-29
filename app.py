@@ -41,18 +41,23 @@ def process():
     response = VoiceResponse()
 
     try:
-
-        # Download the recording as a file-like object
+        # Download the recording
         audio_response = requests.get(f"{recording_url}", auth=(os.getenv("twilio_sid"), os.getenv("twilio_auth")))
         original_audio = AudioSegment.from_file(io.BytesIO(audio_response.content), format="wav")
-        converted_audio = io.BytesIO()
-        original_audio.export(converted_audio, format="mp3")
-        converted_audio.name = "recording.mp3"
-        converted_audio.seek(0)
-        logging.info(f"Saved recording to {converted_audio.name}")
-        # Transcribe using Whisper
-        transcript =  openai.audio.transcriptions.create(model="whisper-1", 
-                                                         file=converted_audio)
+        
+        # Save locally
+        save_path = f"recordings/{from_number.replace('+', '')}_{request.form.get('CallSid')}.mp3"
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)  # create 'recordings' folder if not exists
+        original_audio.export(save_path, format="mp3")
+        logging.info(f"Recording saved locally at: {save_path}")
+        
+        # Now open the saved file for transcription
+        with open(save_path, 'rb') as audio_file:
+            transcript = openai.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file
+            )
+        
         transcription_text = transcript.text
         logging.info(f"Transcribed text: {transcription_text}")
 
@@ -75,8 +80,6 @@ def process():
         response.hangup()
 
     return str(response)
-
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     logging.info(f"Starting Flask app on port {port}...")
