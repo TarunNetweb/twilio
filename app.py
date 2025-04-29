@@ -4,9 +4,15 @@ import requests
 import openai
 import os
 import logging
-from pydub import AudioSegment
-import io
+import cloudinary
+import cloudinary.uploader
 
+# Configure Cloudinary
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET")
+)
 app = Flask(__name__)
 
 # Setup logging
@@ -28,9 +34,6 @@ def voice():
     )
     return str(response)
 
-
-import io
-
 @app.route("/process", methods=['GET', 'POST'])
 def process():
     recording_url = request.form.get("RecordingUrl")
@@ -42,26 +45,34 @@ def process():
     response = VoiceResponse()
 
     try:
-        # Append .mp3 to get the actual audio file
-        audio_url = f"{recording_url}"
-        
-        # Make authenticated request to Twilio to download the file
+        # Download the recording
+        audio_url = f"{recording_url}.mp3"
         twilio_sid = os.getenv("twilio_sid")
         twilio_auth = os.getenv("twilio_auth")
         audio_response = requests.get(audio_url, auth=(twilio_sid, twilio_auth))
 
         if audio_response.status_code != 200:
             raise Exception(f"Failed to download audio. Status: {audio_response.status_code}")
-        
-        # Save file locally
+
+        # Save the file locally
         filename = f"recordings/{from_number.replace('+', '')}_{call_sid}.mp3"
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         with open(filename, 'wb') as f:
             f.write(audio_response.content)
-        
+
         logging.info(f"Recording saved locally at: {filename}")
 
-        response.say("Your message was recorded successfully.")
+        # Upload to Cloudinary
+        upload_result = cloudinary.uploader.upload(
+            filename,
+            resource_type="video",  # use 'video' for audio files like mp3
+            folder="twilio_recordings/"
+        )
+        cloudinary_url = upload_result.get("secure_url")
+        logging.info(f"Recording uploaded to Cloudinary: {cloudinary_url}")
+
+        # Respond to the caller
+        response.say("Your message was recorded and saved successfully.")
         response.say("Goodbye.")
         response.hangup()
 
@@ -71,6 +82,7 @@ def process():
         response.hangup()
 
     return str(response)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
