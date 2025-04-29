@@ -35,51 +35,43 @@ import io
 def process():
     recording_url = request.form.get("RecordingUrl")
     from_number = request.form.get("From")
+    call_sid = request.form.get("CallSid")
 
     logging.info(f"Recording complete. URL: {recording_url}, From: {from_number}")
 
     response = VoiceResponse()
 
     try:
-        # Download the recording
-        audio_response = requests.get(f"{recording_url}", auth=(os.getenv("twilio_sid"), os.getenv("twilio_auth")))
-        original_audio = AudioSegment.from_file(io.BytesIO(audio_response.content), format="wav")
+        # Append .mp3 to get the actual audio file
+        audio_url = f"{recording_url}"
         
-        # Save locally
-        save_path = f"recordings/{from_number.replace('+', '')}_{request.form.get('CallSid')}.mp3"
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)  # create 'recordings' folder if not exists
-        original_audio.export(save_path, format="mp3")
-        logging.info(f"Recording saved locally at: {save_path}")
-        
-        # Now open the saved file for transcription
-        with open(save_path, 'rb') as audio_file:
-            transcript = openai.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file
-            )
-        
-        transcription_text = transcript.text
-        logging.info(f"Transcribed text: {transcription_text}")
+        # Make authenticated request to Twilio to download the file
+        twilio_sid = os.getenv("twilio_sid")
+        twilio_auth = os.getenv("twilio_auth")
+        audio_response = requests.get(audio_url, auth=(twilio_sid, twilio_auth))
 
-        # Generate GPT response
-        gpt_response = openai.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": transcription_text}]
-        )
-        reply = gpt_response.choices[0].message.content
-        logging.info(f"Generated reply using OpenAI: {reply}")
+        if audio_response.status_code != 200:
+            raise Exception(f"Failed to download audio. Status: {audio_response.status_code}")
+        
+        # Save file locally
+        filename = f"recordings/{from_number.replace('+', '')}_{call_sid}.mp3"
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'wb') as f:
+            f.write(audio_response.content)
+        
+        logging.info(f"Recording saved locally at: {filename}")
 
-        # Say the GPT response
-        response.say(reply)
+        response.say("Your message was recorded successfully.")
         response.say("Goodbye.")
         response.hangup()
 
     except Exception as e:
         logging.error(f"Error: {e}")
-        response.say("Sorry, there was a problem processing your message.")
+        response.say("Sorry, there was a problem saving your message.")
         response.hangup()
 
     return str(response)
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     logging.info(f"Starting Flask app on port {port}...")
